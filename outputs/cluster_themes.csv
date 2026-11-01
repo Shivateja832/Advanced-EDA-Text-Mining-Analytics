@@ -1,5 +1,9 @@
 ﻿Cluster,Representative_Terms
-Cluster 1,motor; bearing; wear; noise; bearing wear
-Cluster 2,pairing; network-condition checks; pairing network-condition; network-condition; request pairing
-Cluster 3,seal; controller; inspection; request leak-path; seal inspection
-Cluster 4,battery; temperature; charger; airflow; temperature checks
+Cluster 1,car; vehicle; unknown; problem; honda
+Cluster 2,contact; failure; vehicle; contact stated; stated
+Cluster 3,steering; wheel; steering wheel; steering steering; sticky
+Cluster 4,contact; parts; air bags; bags; air
+Cluster 5,fuel; engine; car; propulsion; fuel propulsion
+Cluster 6,transmission; train; power train; power; gear
+Cluster 7,contact; fuel gasoline; gasoline; recall repair; repair
+Cluster 8,collision; forward; car; forward collision; avoidance

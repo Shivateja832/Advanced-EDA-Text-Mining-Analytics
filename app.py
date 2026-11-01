@@ -29,8 +29,9 @@ st.caption(
     "extract text tags, group issue reports, and download analysis outputs."
 )
 st.info(
-    "Synthetic sample findings are illustrative only. Upload real approved data "
-    "for operational analysis; rule-based tags and clusters are not confirmed causes."
+    "The included NHTSA complaints are publicly submitted reports, not verified "
+    "failures or a representative fleet sample. Counts and text-mining results "
+    "are exploratory; they do not establish failure rates or root causes."
 )
 
 uploaded_file = st.file_uploader(
@@ -44,8 +45,11 @@ reference_file = st.file_uploader(
 
 using_sample = uploaded_file is None
 if using_sample:
-    sample_path = Path(__file__).resolve().parent / "data" / "synthetic_product_service_events.csv"
-    st.caption("Using the included synthetic sample; it is not real customer data.")
+    sample_path = Path(__file__).resolve().parent / "data" / "nhtsa_public_vehicle_complaints.csv"
+    st.caption(
+        "Using public NHTSA complaint records for selected 2019 vehicle models. "
+        "These are consumer reports, not verified defects."
+    )
     try:
         data = load_dataset(sample_path, sample_path.name)
     except (ValueError, OSError, UnicodeDecodeError, pd.errors.ParserError) as error:
@@ -103,7 +107,12 @@ numeric_columns = list(cleaned.select_dtypes(include="number").columns)
 categorical_columns = [
     str(column)
     for column in cleaned.columns
-    if column not in numeric_columns and cleaned[column].nunique(dropna=True) <= 100
+    if column not in numeric_columns
+    and 2 <= cleaned[column].nunique(dropna=True) <= 100
+    and not any(
+        token in str(column).casefold()
+        for token in ("url", "uri", "source", "link", "path")
+    )
 ]
 plot_left, plot_right = st.columns(2)
 with plot_left:
@@ -213,7 +222,13 @@ else:
 
 if date_column != "None":
     trend = monthly_trend(cleaned, date_column)
-    st.subheader("Monthly event frequency")
+    trend_title = (
+        "Monthly complaint filings"
+        if "Data_Source" in cleaned.columns
+        and cleaned["Data_Source"].astype(str).str.contains("NHTSA", case=False).any()
+        else "Monthly event frequency"
+    )
+    st.subheader(trend_title)
     if trend.empty:
         st.warning(f"No usable dates found in '{date_column}'.")
     else:

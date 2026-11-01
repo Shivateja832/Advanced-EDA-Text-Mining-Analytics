@@ -1,32 +1,37 @@
 # Advanced EDA and Text Mining
 
-This local application supports the Task 2 EDA, text mining, clustering, and
-stakeholder-report requirements. A deterministic synthetic product-service
-dataset is included so the notebook and app can be exercised immediately. It
-contains planted patterns and data-quality edge cases for demonstration only;
-it is not real customer, company, or product data and its findings must not be
-used to make operational decisions.
+This application supports the Task 2 EDA, text mining, clustering, and
+stakeholder-report requirements. Its default dataset is a snapshot of public
+consumer vehicle complaints retrieved from the U.S. National Highway Traffic
+Safety Administration (NHTSA) complaints API. Complaint narratives are
+consumer-submitted and not independently verified; this selected set is not
+representative of the vehicle fleet and cannot establish failure rates or causes.
 
 This implementation includes data cleaning, exploratory visualizations,
 rule-based NLP tags, TF-IDF/K-Means complaint grouping, failure trends, and
 CSV/Markdown analysis outputs.
 
-## Included runnable data
+## Included public data
 
-- `data/synthetic_product_service_events.csv`: several thousand synthetic event
-  records with dates, product models, components, lots, severity, exposure,
-  costs, and complaint descriptions. A small number of duplicates and missing
-  or whitespace-inconsistent values are intentionally present for EDA/cleaning
-  validation.
-- `data/synthetic_entity_examples.xlsx`: example entity vocabulary workbook
-  used to enrich extracted component and issue tags.
-- `generate_synthetic_dataset.py`: deterministic generator (fixed random seed)
-  to recreate both files.
+- `data/nhtsa_public_vehicle_complaints.csv`: 2,273 complaint records for four
+  selected 2019 vehicle models (Honda Accord, Toyota Camry, Ford F-150, and
+  Honda CR-V). Complaint IDs are retained for traceability; full VINs are not
+  collected, and obvious email, phone, and VIN patterns in narrative text are
+  redacted.
+- `fetch_nhtsa_complaints.py`: reproducible downloader/normalizer for the
+  official public API. The snapshot contains the retrieval date and source URL
+  on each record.
+- `data/synthetic_product_service_events.csv` and
+  `generate_synthetic_dataset.py`: optional synthetic fixtures retained for
+  repeatable cleaning and workflow tests. Do not treat their planted patterns
+  as real evidence.
+- `data/synthetic_entity_examples.xlsx`: optional entity-term workbook for
+  testing vocabulary enrichment.
 
-Regenerate the sample input with:
+Refresh the public dataset with network access:
 
 ```powershell
-python generate_synthetic_dataset.py
+python fetch_nhtsa_complaints.py
 ```
 
 ## Run locally
@@ -38,7 +43,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-Open the local URL printed by Streamlit. The app accepts CSV, XLSX, and XLSM files,
+Open the local URL printed by Streamlit. The app loads the included NHTSA dataset by default and accepts CSV, XLSX, and XLSM files,
 lets you select an Excel sheet and free-text/date columns, and optionally accepts
 the example-entities Excel workbook. Downloads include a cleaned CSV, a text-tag
 CSV, and a stakeholder Markdown report.
@@ -57,7 +62,7 @@ published page:
 The project is prepared for Streamlit Community Cloud:
 
 - Repository root contains `app.py` and `requirements.txt`.
-- The app and its clearly labeled synthetic demo inputs are in the repository.
+- The app and its public complaint data snapshot are in the repository.
 - `.streamlit/config.toml` sets the server to headless mode and disables usage stats.
 - `.gitignore` excludes local environments, caches, and secret files.
 
@@ -71,8 +76,7 @@ this public repository.
 ## Notebook workflow
 
 Open `Task2_Advanced_EDA_Text_Mining.ipynb` and run the cells in order; it is
-pre-configured to use the included synthetic CSV and entity workbook. The
-notebook uses the same functions as the app and saves cleaned data, extracted
+pre-configured to use the included public NHTSA CSV. The notebook uses the same functions as the app and saves cleaned data, extracted
 tags, cluster themes, charts, monthly counts, and a stakeholder report in
 `outputs/`. Replace the input paths with real approved data for real findings.
 
@@ -80,7 +84,10 @@ tags, cluster themes, charts, monthly counts, and a stakeholder report in
 
 - String fields are trimmed, common null-like strings become missing, duplicate
   rows are removed, categorical missing values become `Unknown`, and numeric
-  missing values are filled with the column median where available.
+  missing values are filled with the column median where available. The included
+  NHTSA snapshot has no intentional missing cells or
+  duplicate rows; the cleaning workflow is still applied and reports the observed
+  quality results instead of manufacturing defects in the evidence.
 - Numeric summaries, missing-value counts, categorical distributions, and
   candidate free-text/date fields are profiled from the uploaded data.
 - Rule-based entity/issue tags are generic starting points. Workbook terms can
@@ -90,11 +97,14 @@ tags, cluster themes, charts, monthly counts, and a stakeholder report in
   root cause. Validate the output with subject-matter experts.
 - Raw event counts do not account for product exposure, reporting rate, or
   installed base; calculate rates when suitable denominators are available.
-- The generated sample plants a motor/bearing increase in one model/lot cohort
-  and includes an active-unit denominator so the analysis can demonstrate
-  segmentation and exposure-adjusted rates. These are test signals, not real
-  manufacturing discoveries.
+- The default NHTSA dataset has no fleet-size denominator; complaint counts
+  cannot be interpreted as model failure rates. Complaint dates show filing
+  frequency, not necessarily when a failure occurred.
+- The selected 2019 model sample is chosen for workflow coverage, not statistical
+  representativeness. Verify any pattern against complete, exposure-adjusted
+  manufacturer/service data before product decisions.
 
 The deployment log showed dependencies installed and the Uvicorn server started.
-The public page rendered all analysis sections and download controls. The data
-is synthetic demonstration data, not real customer or product evidence.
+The public page rendered the analysis sections and download controls. The
+included complaint narratives are public reports, but are not independently
+verified product evidence.

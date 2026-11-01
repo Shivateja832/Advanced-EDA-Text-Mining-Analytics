@@ -13,6 +13,25 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 ISSUE_RULES = {
+    "Safety system issue": (
+        "air bag", "airbag", "seat belt", "seatbelt", "service brake",
+        "brake", "steering", "forward collision avoidance", "lane departure",
+        "vehicle speed control", "blind spot", "collision warning",
+    ),
+    "Powertrain / fuel issue": (
+        "fuel system", "fuel", "propulsion", "power train", "powertrain",
+        "engine", "transmission", "accelerator",
+    ),
+    "Tire / wheel issue": (
+        "tire", "tires", "tyre", "wheel", "wheels",
+    ),
+    "Visibility / lighting issue": (
+        "visibility", "wiper", "windshield", "wind screen", "headlight",
+        "exterior lighting", "lighting", "lamp",
+    ),
+    "Vehicle structure issue": (
+        "vehicle structure", "structure", "door", "hood", "roof", "body panel",
+    ),
     "Electrical issue": (
         "battery", "charger", "charging", "power", "voltage", "current",
         "electrical", "electric", "short circuit", "fuse", "wiring",
@@ -50,7 +69,10 @@ ENTITY_TERMS = {
     "filter", "display", "screen", "connector", "circuit board", "pcb",
     "engine", "cable", "wire", "wifi", "wi-fi", "bluetooth", "firmware",
     "software", "overheat", "overheating", "overheated", "overheats", "leak",
-    "corrosion",
+    "corrosion", "air bag", "airbag", "seat belt", "brake", "steering",
+    "engine", "transmission", "fuel system", "fuel injector", "power train",
+    "tire", "wheel", "wiper", "windshield", "headlight", "air conditioning",
+    "collision avoidance", "lane departure",
 }
 
 NULL_LIKE_VALUES = {"", "na", "n/a", "null", "none", "nan"}
@@ -113,7 +135,7 @@ def profile_columns(data: pd.DataFrame) -> pd.DataFrame:
             "missing": int(series.isna().sum()),
             "unique_values": int(series.nunique(dropna=True)),
         }
-        if pd.api.types.is_numeric_dtype(series):
+        if pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series):
             row.update(
                 {
                     "mean": series.mean(),
@@ -141,7 +163,11 @@ def detect_text_columns(data: pd.DataFrame) -> list[str]:
     """Suggest likely free-text columns using type, average length, and cardinality."""
     candidates = []
     for column in data.select_dtypes(include=["object", "string"]).columns:
-        if re.search(r"(^|[_\s])(id|key|code|serial|sku|notice)([_\s]|$)", str(column), re.I):
+        if re.search(
+            r"(^|[_\s])(id|key|code|serial|sku|notice|url|uri|link|source|path)([_\s]|$)",
+            str(column),
+            re.I,
+        ):
             continue
         if re.search(r"date|time|created|reported|occurred", str(column), re.I):
             continue
@@ -260,7 +286,12 @@ def _cluster_texts(texts: list[str]) -> tuple[list[str], dict[str, list[str]]]:
     distinct_matrix = matrix[list(unique_positions.values())]
     cluster_count = min(8, max(2, round(np.sqrt(len(distinct_signatures) / 2))))
     cluster_count = min(cluster_count, len(distinct_signatures))
-    model = KMeans(n_clusters=cluster_count, random_state=42, n_init=10)
+    model = KMeans(
+        n_clusters=cluster_count,
+        random_state=42,
+        n_init=5,
+        max_iter=100,
+    )
     unique_labels = model.fit_predict(distinct_matrix)
     label_by_signature = {
         signature: f"Cluster {int(cluster) + 1}"
@@ -363,11 +394,24 @@ def generate_report(
         .str.contains("synthetic", case=False, na=False)
         .any()
     )
+    is_nhtsa_public = (
+        "Data_Source" in cleaned_data.columns
+        and cleaned_data["Data_Source"]
+        .astype("string")
+        .str.contains("NHTSA", case=False, na=False)
+        .any()
+    )
     provenance_notice = (
         "This analysis uses a generated synthetic dataset for demonstration; "
         "its counts, patterns, and conclusions are not real customer or product evidence."
         if is_synthetic
-        else "This report is generated from the uploaded records."
+        else (
+            "This analysis uses public, consumer-submitted NHTSA complaints for selected "
+            "2019 vehicle models. Reports are not independently verified, and this "
+            "selected sample is not representative of the vehicle fleet."
+            if is_nhtsa_public
+            else "This report is generated from the uploaded records."
+        )
     )
     lines = [
         "# Advanced EDA and Text Mining Report",
@@ -451,10 +495,62 @@ def generate_report(
             "relationships or identify root cause without engineering validation.",
             "",
         ]
+        if is_nhtsa_public:
+            crash_column = next(
+                (column for column in ["Crash", "crash"] if column in mined_data),
+                None,
+            )
+            injuries_column = next(
+                (column for column in ["Number_Injuries", "numberOfInjuries"] if column in mined_data),
+                None,
+            )
+            deaths_column = next(
+                (column for column in ["Number_Deaths", "numberOfDeaths"] if column in mined_data),
+                None,
+            )
+            if crash_column:
+                crash_count = int(
+                    mined_data[crash_column]
+                    .astype("string")
+                    .str.casefold()
+                    .isin({"true", "1", "yes"})
+                    .sum()
+                )
+                lines.append(
+                    f"- NHTSA records marked as involving a crash: {crash_count}."
+                )
+            if injuries_column:
+                injury_count = int(
+                    pd.to_numeric(mined_data[injuries_column], errors="coerce")
+                    .fillna(0)
+                    .sum()
+                )
+                lines.append(
+                    f"- Injuries reported across these complaints: {injury_count}."
+                )
+            if deaths_column:
+                death_count = int(
+                    pd.to_numeric(mined_data[deaths_column], errors="coerce")
+                    .fillna(0)
+                    .sum()
+                )
+                lines.append(
+                    f"- Deaths reported across these complaints: {death_count}."
+                )
+            lines.append(
+                "These are values recorded in submitted complaints, not independently "
+                "verified outcomes or estimates of risk."
+            )
+            lines.append("")
 
     if date_column:
         trend = monthly_trend(cleaned_data, date_column)
-        lines += ["## Event frequency over time", ""]
+        trend_heading = (
+            "## Complaint filing frequency over time"
+            if is_nhtsa_public
+            else "## Event frequency over time"
+        )
+        lines += [trend_heading, ""]
         if trend.empty:
             lines.append(f"No parseable dates were found in `{date_column}`.")
         else:
@@ -469,7 +565,7 @@ def generate_report(
                     change = (recent - previous) / previous * 100
                     lines += [
                         "",
-                        f"Last six-month volume changed by **{change:+.1f}%** "
+                        f"Last six-month filing volume changed by **{change:+.1f}%** "
                         f"versus the first six months ({recent} vs {previous} records).",
                     ]
         lines.append("")
@@ -498,18 +594,34 @@ def generate_report(
                     else None
                 )
                 lines += [
-                    "## Failure-mode trend",
+                    (
+                        "## Complaint category trend"
+                        if is_nhtsa_public
+                        else "## Failure-mode trend"
+                    ),
                     "",
-                    f"**{top_issue}** occurred {recent_issue_count} times in the most "
-                    f"recent six months versus {previous_issue_count} times in the "
-                    "first six months"
+                    (
+                        f"Complaints tagged **{top_issue}** were filed {recent_issue_count} "
+                        f"times in the most recent six months versus {previous_issue_count} "
+                        "times in the first six months"
+                        if is_nhtsa_public
+                        else f"**{top_issue}** occurred {recent_issue_count} times in the most "
+                        f"recent six months versus {previous_issue_count} times in the "
+                    )
                     + (
                         f" ({issue_change:+.1f}%)."
                         if issue_change is not None
                         else "."
                     ),
-                    "Review the month-by-month chart and validate whether the change "
-                    "tracks product volume, reporting changes, or a genuine reliability signal.",
+                    (
+                        "Review the month-by-month chart and determine whether the "
+                        "change reflects complaint/reporting behavior; filings do not "
+                        "by themselves establish a change in failure incidence."
+                        if is_nhtsa_public
+                        else "Review the month-by-month chart and validate whether the "
+                        "change tracks product volume, reporting changes, or a genuine "
+                        "reliability signal."
+                    ),
                     "",
                 ]
 
@@ -639,10 +751,17 @@ def generate_report(
         "## Limits and further improvements",
         "",
         (
-            "- This report is based on generated synthetic records; use real, "
-            "quality-controlled product data before making operational decisions."
+            "- This report is based on generated synthetic records; do not use its "
+            "counts or patterns as operational evidence."
             if is_synthetic
-            else "- Findings depend on the source dataset and chosen text/date columns."
+            else (
+                "- NHTSA complaints are consumer-submitted reports, not verified "
+                "defects; selected vehicle models do not represent the fleet. Raw "
+                "complaint counts are not failure rates because vehicle exposure and "
+                "reporting propensity are unavailable."
+                if is_nhtsa_public
+                else "- Findings depend on the source dataset and chosen text/date columns."
+            )
         ),
         "- The built-in rules are generic and should be adapted to product terminology.",
         "- Date trends do not adjust for exposure, sales volume, reporting delays, or "
