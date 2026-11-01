@@ -35,7 +35,7 @@ st.info(
 )
 
 uploaded_file = st.file_uploader(
-    "Upload a dataset (or use the included synthetic demonstration data)",
+    "Upload a dataset (or use the included public NHTSA complaint dataset)",
     type=["csv", "xlsx", "xlsm"],
 )
 reference_file = st.file_uploader(
