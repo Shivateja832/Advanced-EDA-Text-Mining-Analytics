@@ -48,6 +48,12 @@ Streamlit/Altair chart axes do not support pandas `Interval` objects directly.
 
 ## Streamlit Community Cloud deployment
 
+The app is deployed on Streamlit Community Cloud and was verified against the
+published page:
+
+- **Live app:** https://advanced-eda-text-mining-analytics-hs3rusxkyzch9msng8dmvm.streamlit.app/
+- **Source:** `Shivateja832/Advanced-EDA-Text-Mining-Analytics`, branch `main`, file `app.py`
+
 The project is prepared for Streamlit Community Cloud:
 
 - Repository root contains `app.py` and `requirements.txt`.
@@ -55,7 +61,7 @@ The project is prepared for Streamlit Community Cloud:
 - `.streamlit/config.toml` sets the server to headless mode and disables usage stats.
 - `.gitignore` excludes local environments, caches, and secret files.
 
-To publish it, sign in to [Streamlit Community Cloud](https://share.streamlit.io),
+To recreate the deployment, sign in to [Streamlit Community Cloud](https://share.streamlit.io),
 choose **Create app**, select the public GitHub repository
 `Shivateja832/Advanced-EDA-Text-Mining-Analytics`, branch `main`, and set the
 app file to `app.py`. Streamlit Cloud will provide the final public app URL after
@@ -89,6 +95,6 @@ tags, cluster themes, charts, monthly counts, and a stakeholder report in
   segmentation and exposure-adjusted rates. These are test signals, not real
   manufacturing discoveries.
 
-The app is locally runnable. A live cloud deployment is complete only after the
-repository is updated and Streamlit Community Cloud reports a successful build;
-the final Cloud URL must be verified after deployment.
+The deployment log showed dependencies installed and the Uvicorn server started.
+The public page rendered all analysis sections and download controls. The data
+is synthetic demonstration data, not real customer or product evidence.
