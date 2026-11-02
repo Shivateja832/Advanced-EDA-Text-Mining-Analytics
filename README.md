@@ -75,7 +75,7 @@ this public repository.
 
 ## Notebook workflow
 
-Open `Task2_Advanced_EDA_Text_Mining.ipynb` and run the cells in order; it is
+Open `Advanced_EDA_Text_Mining.ipynb` and run the cells in order; it is
 pre-configured to use the included public NHTSA CSV. The notebook uses the same functions as the app and saves cleaned data, extracted
 tags, cluster themes, charts, monthly counts, and a stakeholder report in
 `outputs/`. Replace the input paths with real approved data for real findings.
